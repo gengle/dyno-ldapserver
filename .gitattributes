@@ -1,0 +1,8 @@
+# This repo lives on an NTFS path but is built from WSL2. Keep LF everywhere so
+# the two toolchains don't fight over line endings.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.ldif text eol=lf

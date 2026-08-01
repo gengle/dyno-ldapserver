@@ -1,0 +1,20 @@
+/target
+**/*.rs.bk
+*.pdb
+
+# Local dev config & secrets
+/.env
+/local/
+*.key
+*.pem
+*.crt
+!tests/fixtures/**/*.pem
+!tests/fixtures/**/*.crt
+!tests/fixtures/**/*.key
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
