@@ -1,0 +1,16 @@
+[package]
+name = "dyno-cel"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+cel = "0.14.1"
+dyno-core = { version = "0.1.0", path = "../dyno-core" }
+serde = { version = "1.0.229", features = ["derive"] }
+thiserror = "2.0.19"
+
+[lints]
+workspace = true

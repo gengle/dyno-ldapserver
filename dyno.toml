@@ -1,0 +1,36 @@
+# Example configuration.
+#
+#   cargo run -p dyno-server -- --config dyno.toml --check   # validate only
+#   cargo run -p dyno-server -- --config dyno.toml           # serve
+
+[server]
+listen = "127.0.0.1:3389"
+
+# Server-side ceilings. A client may ask for less; it may not ask for more.
+size_limit = 1000
+time_limit = 30
+
+# Largest BER element accepted from a client. Raising this raises the cost of
+# a hostile connection, so it is a deliberate setting rather than a default.
+max_ber_size = 32768
+
+# With this off, the directory is readable without binding. Writes always
+# require authentication regardless.
+require_bind = false
+
+# Set to false to make the whole server read-only.
+allow_writes = true
+
+[backend]
+# "memory" is writable and, with `seed`, starts from an LDIF snapshot.
+# "ldif" serves that same file read-only.
+kind = "memory"
+suffix = "dc=example,dc=com"
+seed = "fixtures/directory.ldif"
+
+# Accounts that may bind, in addition to any entry in the directory that has a
+# userPassword. Passwords here are cleartext, which is a fixture-server
+# simplification, not a recommendation.
+[[user]]
+dn = "cn=admin,dc=example,dc=com"
+password = "adminpw"

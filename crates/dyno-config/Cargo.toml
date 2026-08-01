@@ -1,0 +1,19 @@
+[package]
+name = "dyno-config"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+arc-swap = "1.9.2"
+dyno-cel = { version = "0.1.0", path = "../dyno-cel" }
+dyno-core = { version = "0.1.0", path = "../dyno-core" }
+serde = { version = "1.0.229", features = ["derive"] }
+thiserror = "2.0.19"
+toml = "1.1.4"
+tracing = "0.1.44"
+
+[lints]
+workspace = true

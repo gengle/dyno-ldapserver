@@ -4,8 +4,10 @@ A dynamic LDAP server in pure Rust. Serves directory data from pluggable backend
 shapes every request and response through user-supplied CEL expressions, and can
 sit in front of an upstream LDAP server as a rewriting proxy.
 
-Status: greenfield. Nothing is implemented yet — see `DESIGN.md` for the
-architecture and the phased build plan.
+Status: phases 0, 1 and 3 of the build plan are implemented — a working server
+that binds, searches and writes. Phase 2 (CEL rules), 4 (TLS) and 5 (proxy) are
+not started. See `DESIGN.md` for the architecture and current status, and
+`TESTING.md` for the feature-by-feature passing/failing test matrix.
 
 ## Environment
 
@@ -21,8 +23,9 @@ Two things are *not* available, and they constrain design choices:
   If a system package is genuinely needed, ask the user to run it themselves.
 - **`pkg-config` and OpenSSL headers are absent.** Prefer pure-Rust crates.
   For TLS this means `rustls`, never `native-tls`/`openssl`.
-- **`ldapsearch` is not installed.** Use an LDAP client from a Docker container
-  for manual testing rather than expecting host binaries.
+- **`ldapsearch` is not installed.** Use the in-repo stand-in instead of a
+  container: `cargo run -p dyno-server --example smoke_client -- ldap://127.0.0.1:3389`
+  binds, searches, adds, finds and deletes, printing each step.
 
 Building on `/mnt/c` is slow because of the 9p filesystem crossing. If build
 times get painful, point `CARGO_TARGET_DIR` at a Linux-native path
@@ -35,11 +38,16 @@ cargo check --workspace --all-targets   # fast feedback loop
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo fmt --all
+
+cargo run -p dyno-server -- --config dyno.toml --check   # validate config only
+cargo run -p dyno-server -- --config dyno.toml           # serve on 127.0.0.1:3389
 ```
 
 ## Conventions
 
-- Rust edition 2024, MSRV 1.85 (floor set by `ldap3_proto` 0.8).
+- Rust edition 2024, MSRV **1.86** — verified, not assumed. Edition 2024 and
+  `ldap3_proto` 0.8 only need 1.85, but `cel` 0.14.1 requires 1.86, so that is
+  the real floor. CI checks it.
 - Async runtime is `tokio`, multi-threaded.
 - Errors: `thiserror` in library crates, `anyhow` only in the binary.
 - Logging: `tracing`. Never log credentials or full entry contents at `info` or

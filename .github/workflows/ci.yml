@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the toolchain
+        run: rustup toolchain install stable --profile minimal --component rustfmt,clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      # Formatting first: it is the fastest way to fail, and a formatting diff
+      # makes every other failure harder to read.
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace
+
+      # The config file and fixture shipped in the repo have to stay loadable;
+      # a fixture that has drifted is worse than none.
+      - name: Validate the example configuration
+        run: cargo run -p dyno-server -- --config dyno.toml --check
+
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the MSRV toolchain
+        run: rustup toolchain install 1.86 --profile minimal
+      - uses: Swatinem/rust-cache@v2
+      # 1.86 is the floor `cel` 0.14 imposes; edition 2024 and ldap3_proto only
+      # need 1.85. If this breaks, either the floor moves or a dependency does —
+      # both are decisions, not accidents.
+      - name: Build at the MSRV
+        run: cargo +1.86 check --workspace --all-targets

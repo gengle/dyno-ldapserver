@@ -1,0 +1,28 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+edition = "2024"
+# 1.85 is the edition-2024 floor and what `ldap3_proto` 0.8 asks for, but
+# `cel` 0.14.1 requires 1.86, so that is the real floor. Verified by CI.
+rust-version = "1.86"
+license = "MPL-2.0"
+repository = "https://github.com/gengle/dyno-ldapserver"
+
+# Lints applied to every crate. `unwrap`/`panic` are denied in library crates
+# because the LDAP surface is untrusted input; the binary relaxes some of these
+# in its own manifest where a startup failure is the correct outcome.
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+indexing_slicing = "deny"
+todo = "deny"
+unimplemented = "deny"
+integer_division = "warn"
+arithmetic_side_effects = "warn"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"

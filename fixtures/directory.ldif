@@ -1,0 +1,47 @@
+# A small example directory, used by dyno.toml and by the smoke-test example.
+version: 1
+
+dn: dc=example,dc=com
+objectClass: top
+objectClass: domain
+dc: example
+
+dn: ou=People,dc=example,dc=com
+objectClass: top
+objectClass: organizationalUnit
+ou: People
+
+dn: ou=Groups,dc=example,dc=com
+objectClass: top
+objectClass: organizationalUnit
+ou: Groups
+
+dn: cn=Bob Smith,ou=People,dc=example,dc=com
+objectClass: top
+objectClass: person
+objectClass: inetOrgPerson
+cn: Bob Smith
+sn: Smith
+uid: bsmith
+uidNumber: 1010
+mail: bob@example.com
+description: a description long enough to demonstrate that LDIF line folding
+  works the way RFC 2849 says it should
+userPassword: bobsecret
+
+dn: cn=Alice Jones,ou=People,dc=example,dc=com
+objectClass: top
+objectClass: person
+objectClass: inetOrgPerson
+cn: Alice Jones
+sn: Jones
+uid: ajones
+uidNumber: 1011
+mail: alice@example.com
+
+dn: cn=staff,ou=Groups,dc=example,dc=com
+objectClass: top
+objectClass: groupOfNames
+cn: staff
+member: cn=Bob Smith,ou=People,dc=example,dc=com
+member: cn=Alice Jones,ou=People,dc=example,dc=com

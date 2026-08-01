@@ -18,6 +18,22 @@ The motivating use cases are test fixtures that mimic a production directory,
 migrations where two directory layouts must coexist, and adapting a directory
 for an application that expects a different schema than the one you have.
 
+## Implementation status
+
+| Phase | State |
+| --- | --- |
+| 0 — scaffold | Done. Five crates, workspace lint table, shared error conventions. |
+| 1 — read-only server | Done. TCP listener, `LdapCodec` framing, session state machine, anonymous and simple bind, search with all four scopes and full filter matching, root DSE, compare, WhoAmI. |
+| 2 — dynamic behaviour | Not started. `dyno-cel` is a documented stub; `dyno-config` validates and hot-swaps, but has no rule table yet. |
+| 3 — writes | Done ahead of order. Add, delete, modify and modifyDN against `MemoryBackend`, with the concurrency model settled (see below). Rule veto arrives with Phase 2. |
+| 4 — transport security | Not started. `conn.tls` is always false; StartTLS answers `unavailable` rather than pretending. |
+| 5 — proxy | Not started. The `Backend` trait and the DN-syntax table in `Schema` are the two pieces already in place for it. |
+| 6 — hardening | Partial. BER size limit is configurable, size and time limits are enforced, writes are audit-logged. No metrics, fuzzing or benchmarks. |
+
+Phase 3 was pulled forward because the `Backend` trait had to express writes
+either way — deferring them would have meant designing the trait twice. See
+`TESTING.md` for the feature-by-feature test matrix.
+
 ## Design principles
 
 **The proxy is not a bolt-on.** A rewriting proxy is the hardest thing here, and
@@ -240,18 +256,71 @@ request limits, fuzzing the decoder, benchmarks.
 - **Fuzzing** the BER decode path, since it is the one place where a hostile
   client reaches parsing code directly.
 
+## Decisions settled while building phases 1 and 3
+
+These were open questions; they are not any more. Each is recorded with the
+reason, because the reason is the part that gets lost.
+
+**Multi-backend routing: one backend per server instance.** `Backend` takes no
+naming-context argument. Routing, when it is needed, is a `Backend`
+implementation that owns several others and dispatches on the base DN — the
+same shape as the proxy. Putting routing in the trait signature would have made
+every implementation carry a concern only one of them has.
+
+**Filter evaluation is three-valued, not boolean.** `True`/`False`/`Undefined`
+per RFC 4511 §4.5.1.7. Collapsing `Undefined` into `False` at the leaves is
+cheap and wrong: `(!(uidNumber>=abc))` then matches every entry in the
+directory. This is enforced by a test at the domain layer and again over the
+wire.
+
+**Schema is open, but matching rules are not.** An unknown attribute is usable
+and gets `caseIgnoreMatch`. Known attributes get the right rule, which is what
+keeps `userPassword` from being case-folded and lets `member` compare as a DN.
+The DN-syntax flag in `Schema` is also exactly what the proxy will need to know
+which values to rewrite, so it earns its place now rather than later.
+
+**Entry validation lives in the backend, not in a schema checker.** Add and
+modify enforce four things: the entry contains the values that name it, it has
+an `objectClass`, single-valued attributes hold one value, and a modify cannot
+strip the RDN value. Full objectClass validation stays out until rules exist,
+since a fixture server frequently wants entries a real schema would reject.
+
+**Concurrency: one `RwLock` over the whole store, changes applied to a clone.**
+Reads are concurrent, writes serialise, and the lock is never held across an
+`await`. A modify list that fails half way through leaves the entry untouched
+because the failure happens on the clone. For a fixture directory, atomicity is
+worth more than write throughput.
+
+**Anonymous clients may never write**, independently of `require_bind`. A
+directory that anyone can modify without identifying themselves has no useful
+audit trail.
+
+**Size limits are reported, never silently applied.** A backend returns one
+entry past the limit as an overflow signal, so the server can answer
+`sizeLimitExceeded` with a partial result rather than a truncated result that
+looks complete.
+
+**DN comparison folds case for every attribute**, rather than consulting each
+attribute's own matching rule. This keeps `Dn` free of a schema reference so it
+can implement `Eq` and `Hash`, and it matches what directory servers do in
+practice. Documented on `Dn` itself, since it is a real (if small) deviation.
+
+**LDIF loads content records only.** A `changetype:` record describes an
+operation, not a state; loading one as an entry would produce a directory that
+does not match the file. URL-valued attributes are refused because loading a
+fixture should not perform I/O of its own.
+
 ## Open questions
 
-These need answers before the phases that depend on them, and are deliberately
-not decided yet:
+Still genuinely undecided, and deliberately so:
 
-- Schema enforcement: do we validate entries against objectClass definitions, or
-  stay schema-agnostic and let rules decide? Affects Phase 3.
 - How much of a real schema do we need for DN-syntax attribute detection in the
-  proxy? A hardcoded list covers the common cases; reading the upstream's schema
-  is correct but much more work.
+  proxy? The built-in table in `Schema::builtin` covers the common cases;
+  reading the upstream's schema is correct but much more work.
 - Paged results combined with entry-dropping rules — is there a correct answer,
   or is it documented as unsupported?
-- Multi-backend routing: one backend per naming context, or a single backend per
-  server instance? Affects the `Backend` trait signature, so it should be
-  settled early.
+- Whether `MemoryBackend` should persist. Today it is seeded from LDIF at
+  startup and changes are lost on restart, which is right for a fixture and
+  wrong for anything else.
+- Whether rules should be able to *see* a failed operation, or only successful
+  ones. Affects where the response stage sits relative to error paths.

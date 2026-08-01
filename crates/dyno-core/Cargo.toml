@@ -1,0 +1,17 @@
+[package]
+name = "dyno-core"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+thiserror = "2.0.19"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+proptest = "1.11.0"
